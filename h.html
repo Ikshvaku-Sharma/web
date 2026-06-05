@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ishaan Sharma // Systems Developer</title>
+  
+  <style>
+    :root {
+      --bg: #050508;
+      --surface: #0c0c14;
+      --card: #11111f;
+      --border: #1e1e32;
+      --accent: #00f5c4;
+      --accent-dim: rgba(0, 245, 196, 0.1);
+      --text: #e8e8f0;
+      --muted: #6b6b8a;
+      --font-mono: 'Courier New', Courier, monospace;
+      --font-main: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; background-color: var(--bg); }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-main);
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    @media (max-width: 900px) {
+      body { cursor: auto; }
+      #cursor, #cursor-ring, #cursor-satellite { display: none !important; }
+    }
+
+    /* --- CRITICAL BOOT / REFRESH PRELOADER OVERLAY --- */
+    #sys-preloader {
+      position: fixed; inset: 0; background: var(--bg); z-index: 10000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem;
+      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+    }
+    #sys-preloader.loaded { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-terminal { width: 320px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.3rem; }
+    .loader-title { font-size: 1.8rem; font-weight: bold; color: var(--text); letter-spacing: 4px; margin-bottom: 0.5rem; text-align: center; }
+    .loader-title span { color: var(--accent); }
+    .progress-bar-container { width: 100%; height: 2px; background: var(--border); position: relative; overflow: hidden; margin: 0.5rem 0; }
+    .progress-bar-fill { height: 100%; width: 0%; background: var(--accent); box-shadow: 0 0 8px var(--accent); transition: width 0.1s linear; }
+    .loader-status-row { display: flex; justify-content: space-between; font-size: 0.75rem; }
+    #loader-pct { color: var(--accent); font-weight: bold; }
+
+    /* --- BASIC INTERFACE RULES --- */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+    #particle-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.35; }
+
+    /* --- SPECIAL HARDWARE CURSOR ENGINE --- */
+    #cursor { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); }
+    #cursor-ring { width: 36px; height: 36px; border: 1px dashed var(--accent); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9998; transform: translate(-50%, -50%); }
+    #cursor-satellite { width: 6px; height: 6px; background: #7b5cff; border-radius: 50%; position: fixed; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); box-shadow: 0 0 8px #7b5cff; }
+
+    nav {
+      position: fixed; top: 0; width: 100%; z-index: 100; padding: 1.5rem 3rem;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border); background: rgba(5, 5, 8, 0.9); backdrop-filter: blur(12px);
+    }
+    .nav-logo { font-family: var(--font-mono); font-size: 1.2rem; color: var(--accent); letter-spacing: 2px; font-weight: bold; }
+    .nav-logo span { color: var(--muted); }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-family: var(--font-mono); font-size: 0.85rem; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--accent); }
+
+    #hero { min-height: 100vh; display: flex; align-items: center; padding: 0 3rem; position: relative; z-index: 1; }
+    .hero-grid-bg {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(var(--accent-dim) 1px, transparent 1px), linear-gradient(90deg, var(--accent-dim) 1px, transparent 1px);
+      background-size: 50px 50px; mask-image: radial-gradient(circle at 50% 50%, black 30%, transparent 80%); z-index: -1;
+    }
+    .hero-content { max-width: 850px; }
+    .hero-tag { font-family: var(--font-mono); color: var(--accent); font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 1rem; }
+    .hero-name { font-size: clamp(3.5rem, 8vw, 7.5rem); font-weight: 800; line-height: 0.95; letter-spacing: -2px; }
+    .stroke-text { display: block; -webkit-text-stroke: 1px var(--accent); color: transparent; }
+    .hero-desc { font-family: var(--font-mono); color: var(--muted); font-size: 1.1rem; margin-top: 1.5rem; }
+    .cursor-blink { animation: blink 0.8s infinite steps(1); color: var(--accent); }
+
+    .hero-actions { display: flex; gap: 1.5rem; margin-top: 2.5rem; }
+    .btn-primary, .btn-outline {
+      padding: 0.8rem 2rem; font-family: var(--font-mono); text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 12px));
+    }
+    .btn-primary { background: var(--accent); color: #000; font-weight: bold; }
+    .btn-primary:hover { background: #fff; }
+    .btn-outline { border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    section { padding: 8rem 3rem; position: relative; z-index: 1; border-bottom: 1px solid var(--border); }
+    #about { background: var(--surface); }
+    .section-tag { font-family: var(--font-mono); color: var(--accent); font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase; display: block; margin-bottom: 0.5rem;}
+    .section-title { font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 800; letter-spacing: -1px; margin-bottom: 4rem; }
+    .section-title em { font-style: normal; -webkit-text-stroke: 1px var(--accent); color: transparent; }
+
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    .about-text p { color: var(--muted); font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem; }
+
+    .about-terminal { background: var(--card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .terminal-header { background: #09090f; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .red { background: #ff5f56; } .yellow { background: #ffbd2e; } .green { background: #27c93f; }
+    .terminal-title { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); margin-left: auto; margin-right: auto; }
+    .terminal-body { padding: 1.5rem; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.6; }
+    .p-prompt { color: var(--accent); } .p-key { color: #f14e32; } .p-val { color: #ffbd2e; }
+
+    /* --- PROJECTS / INTERACTIVE BAY SYSTEM --- */
+    .ai-visualizer-container { display: grid; grid-template-columns: 1fr 1.2fr; gap: 4rem; align-items: center; min-height: 500px; }
+    
+    .engine-bay {
+      display: flex; justify-content: center; align-items: center; position: relative; height: 400px;
+      background: rgba(12, 12, 20, 0.4); border: 1px solid var(--border); border-radius: 8px; 
+      perspective: 1000px; overflow: hidden;
+      user-select: none; -webkit-user-select: none;
+    }
+    .engine-bay-instruction { position: absolute; bottom: 12px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); pointer-events: none; text-transform: uppercase; letter-spacing: 1px; }
+
+    .hardware-wrapper { 
+      position: relative; width: 250px; height: 250px; transform-style: preserve-3d; 
+      cursor: grab; transition: transform 0.1s linear; touch-action: none;
+    }
+    .hardware-wrapper:active { cursor: grabbing; }
+
+    .core-svg { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .ring { fill: none; stroke: var(--accent); stroke-width: 1.5; transform-origin: center; }
+    .outer-ring { stroke-dasharray: 20 10 40 15; animation: spinClockwise 25s linear infinite; }
+    .middle-ring { stroke: #7b5cff; stroke-dasharray: 15 30 10 10; animation: spinCounterClockwise 15s linear infinite; }
+    .core-node { fill: rgba(0, 245, 196, 0.15); stroke: var(--accent); stroke-width: 2; transform-origin: center; animation: pulsingNode 3s ease-in-out infinite; }
+    .data-pipe { stroke: var(--border); stroke-width: 1; stroke-dasharray: 4 4; }
+    .matrix-glow { position: absolute; inset: 10px; background: radial-gradient(circle, rgba(0, 245, 196, 0.12) 0%, transparent 70%); pointer-events: none; animation: breathGlow 4s ease-in-out infinite; }
+
+    .modules-interface { display: flex; flex-direction: column; gap: 1.5rem; }
+    .module-card { background: var(--card); border: 1px solid var(--border); padding: 1.8rem; border-radius: 6px; cursor: pointer; transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); overflow: hidden; position: relative; }
+    .module-card:hover { border-color: rgba(0, 245, 196, 0.5); }
+    .module-card.active { border-color: var(--accent); background: rgba(17, 17, 31, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+    .module-status { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .status-pulse { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); }
+    .module-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .module-summary { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+    .module-expanded-content { max-height: 0; opacity: 0; transition: max-height 0.5s ease, opacity 0.4s ease; margin-top: 0; }
+    .module-card.active .module-expanded-content { max-height: 200px; opacity: 1; margin-top: 1.5rem; }
+    .data-stream-box { background: #06060a; border: 1px solid var(--border); padding: 1rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .stream-line { color: #7b5cff; } .stream-line:first-child { color: var(--accent); }
+
+    /* --- ADVANCED UPGRADED CONTACT LAYER METRICS --- */
+    #contact { background: var(--surface); text-align: left; }
+    .contact-grid-layout {
+      display: grid; grid-template-columns: 1fr 1.2fr; gap: 4rem; align-items: start;
+    }
+    .contact-left-info h2 { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; }
+    .contact-left-info h2 span { -webkit-text-stroke: 1px var(--accent); color: transparent; }
+    .contact-sub-text { color: var(--muted); font-size: 1.05rem; line-height: 1.7; margin-bottom: 2.5rem; }
+    
+    .contact-social-nodes { display: flex; flex-direction: column; gap: 1rem; }
+    .social-node-link {
+      display: flex; align-items: center; gap: 1rem; font-family: var(--font-mono); color: var(--text);
+      text-decoration: none; border: 1px solid var(--border); padding: 1rem 1.5rem; transition: all 0.2s ease;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+    .social-node-link:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Matrix Secure Form Framework Styles */
+    .secure-input-form { display: flex; flex-direction: column; gap: 1.2rem; }
+    .form-group-field { position: relative; width: 100%; }
+    
+    .matrix-input, .matrix-textarea {
+      width: 100%; background: #07070d; border: 1px solid var(--border); padding: 1.1rem;
+      font-family: var(--font-mono); font-size: 0.9rem; color: var(--text); outline: none;
+      transition: border-color 0.3s ease;
+    }
+    .matrix-textarea { min-height: 160px; resize: vertical; }
+    .matrix-input:focus, .matrix-textarea:focus { border-color: var(--accent); }
+    
+    .matrix-submit-btn {
+      width: 100%; background: var(--accent); color: #000; font-family: var(--font-main);
+      font-size: 1rem; font-weight: bold; border: none; padding: 1.1rem; cursor: none;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .matrix-submit-btn:hover { background: #fff; transform: translateY(-2px); }
+    .matrix-submit-btn:active { transform: translateY(0); }
+
+    footer { padding: 2rem 3rem; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); border-top: 1px solid var(--border); }
+    .fade-up { opacity: 0; transform: translateY(30px); transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .fade-up.active { opacity: 1; transform: translateY(0); }
+
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes spinClockwise { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spinCounterClockwise { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+    @keyframes pulsingNode { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent)); } 50% { transform: scale(1.08); filter: drop-shadow(0 0 8px var(--accent)); } }
+    @keyframes breathGlow { 0%, 100% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+
+    @media (max-width: 900px) {
+      nav { padding: 1rem 1.5rem; } .nav-links { display: none; }
+      section { padding: 4rem 1.5rem; } .about-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+      .ai-visualizer-container { grid-template-columns: 1fr; gap: 2rem; } .engine-bay { height: 280px; }
+      .contact-grid-layout { grid-template-columns: 1fr; gap: 3rem; }
+      footer { flex-direction: column; gap: 1rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="sys-preloader">
+    <div class="loader-terminal">
+      <div class="loader-title">ISHAAN_<span>OS</span></div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="loader-bar"></div>
+      </div>
+      <div class="loader-status-row">
+        <span id="loader-log">Initializing modules...</span>
+        <span id="loader-pct">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="particle-canvas"></canvas>
+  
+  <div id="cursor"></div>
+  <div id="cursor-ring"></div>
+  <div id="cursor-satellite"></div>
+
+  <nav>
+    <div class="nav-logo">IS<span>//</span>_OS</div>
+    <ul class="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+
+  <header id="hero">
+    <div class="hero-grid-bg"></div>
+    <div class="hero-content">
+      <div class="hero-tag">System Status: Active</div>
+      <h1 class="hero-name">
+        <span class="glitch" data-text="ISHAAN">ISHAAN</span>
+        <span class="stroke-text">SHARMA</span>
+      </h1>
+      <p class="hero-desc">
+        &gt; <span id="typing-text"></span><span class="cursor-blink">|</span>
+      </p>
+      <div class="hero-actions">
+        <a href="#projects" class="btn-primary">Initialize Work</a>
+        <a href="#contact" class="btn-outline">Ping Connection</a>
+      </div>
+    </div>
+  </header>
+
+  <section id="about">
+    <span class="section-tag">01 // environment</span>
+    <h2 class="section-title">System <em>Core</em></h2>
+    <div class="about-grid">
+      <div class="about-text fade-up">
+        <p>I'm a computer science student specialized in low-level systems architecture and machine learning pipelines. I look at software by understanding exactly what happens down at the bare-metal layer.</p>
+        <p>My work ranges from writing an x86 bootloader and round-robin scheduler from scratch, to architecting algorithm-driven platforms like SkillMatrix AI. I prefer pure documentation and strict control over overhead frameworks.</p>
+      </div>
+      <div class="about-terminal fade-up">
+        <div class="terminal-header">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="terminal-title">ishaan@archlinux:~</span>
+        </div>
+        <div class="terminal-body">
+          <p><span class="p-prompt">❯</span> cat stack.json</p>
+          <pre>{
+  <span class="p-key">"kernel"</span>: <span class="p-val">"Custom 32-bit x86"</span>,
+  <span class="p-key">"env"</span>: <span class="p-val">"Arch Linux // Hyprland"</span>,
+  <span class="p-key">"core_langs"</span>: [<span class="p-val">"C++"</span>, <span class="p-val">"C"</span>, <span class="p-val">"NASM"</span>, <span class="p-val">"Python"</span>],
+  <span class="p-key">"focus"</span>: [<span class="p-val">"OS Internals"</span>, <span class="p-val">"DSA"</span>, <span class="p-val">"AIML"</span>]
+}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <span class="section-tag">02 // neural architecture</span>
+    <h2 class="section-title">Compute <em>Cores</em></h2>
+    
+    <div class="ai-visualizer-container">
+      <div class="engine-bay">
+        <div class="hardware-wrapper" id="core-hardware">
+          <svg class="core-svg" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="80" class="ring outer-ring" />
+            <circle cx="100" cy="100" r="55" class="ring middle-ring" />
+            <polygon points="100,65 130,115 70,115" class="core-node" />
+            <line x1="100" y1="20" x2="100" y2="65" class="data-pipe" />
+            <line x1="30" y1="140" x2="70" y2="115" class="data-pipe" />
+            <line x1="170" y1="140" x2="130" y2="115" class="data-pipe" />
+          </svg>
+          <div class="matrix-glow"></div>
+        </div>
+        <div class="engine-bay-instruction">Interact to Rotate Engine Core</div>
+      </div>
+
+      <div class="modules-interface">
+        <div class="module-card active" data-target="skillmatrix" onclick="switchEngineCore('skillmatrix')">
+          <div class="module-status"><span class="status-pulse"></span>CORE_READY</div>
+          <h3 class="module-title">SkillMatrix AI</h3>
+          <p class="module-summary">Intelligence-driven evaluation framework analyzing verified algorithmic capability metrics.</p>
+          <div class="module-expanded-content">
+            <div class="data-stream-box">
+              <span class="stream-line">// PIPELINE INITIALIZATION...</span>
+              <span class="stream-line">&gt; Feature Extraction: Algorithmic Vectorization</span>
+              <span class="stream-line">&gt; Model Weights: Performance Profile Metrics</span>
+              <span class="stream-line">&gt; Target Objective: Replacing standard CGPA tracking with multi-dimensional capability mapping.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="module-card" data-target="kernel" onclick="switchEngineCore('kernel')">
+          <div class="module-status"><span class="status-pulse"></span>CORE_READY</div>
+          <h3 class="module-title">Ishaan OS Kernel</h3>
+          <p class="module-summary">Monolithic 32-bit architecture operating directly on custom hardware abstractions.</p>
+          <div class="module-expanded-content">
+            <div class="data-stream-box">
+              <span class="stream-line">// BARE METAL LINK ESTABLISHED...</span>
+              <span class="stream-line">&gt; Subsystem: Custom x86 Interrupt Service Routines</span>
+              <span class="stream-line">&gt; Dispatcher: Hardware-level Round-Robin Scheduler</span>
+              <span class="stream-line">&gt; Execution Layer: Pure C & Assembly bootstrap tracking memory allocation matrices.</span>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="contact-wrap fade-up">
+      <span class="section-tag">03 // secure messaging node</span>
+      
+      <div class="contact-grid-layout">
+        
+        <div class="contact-left-info">
+          <h2>Contact <span>Me</span></h2>
+          <p class="contact-sub-text">
+            Open for internships, core development collaborations, and embedded hardware/software discussions. Reach out via the secure link form, or drop a direct ping on my social vectors.
+          </p>
+          
+          <div class="contact-social-nodes">
+            <a href="https://wa.me/919350263362" target="_blank" class="social-node-link">
+              <span>[!]</span> WhatsApp Connection
+            </a>
+            <a href="https://instagram.com/ikshvaku_sharma5757" target="_blank" class="social-node-link">
+              <span>[@]</span> Instagram Profile
+            </a>
+          </div>
+        </div>
+
+        <form class="secure-input-form" action="https://formspree.io/f/ishaan0916@gmail.com" method="POST">
+          <div class="form-group-field">
+            <input type="text" name="name" class="matrix-input" placeholder="Your Name" required autocomplete="off">
+          </div>
+          
+          <div class="form-group-field">
+            <input type="email" name="email" class="matrix-input" placeholder="Your Email" required autocomplete="off">
+          </div>
+          
+          <div class="form-group-field">
+            <textarea name="message" class="matrix-textarea" placeholder="Your Message" required></textarea>
+          </div>
+          
+          <button type="submit" class="matrix-submit-btn">Send Message</button>
+        </form>
+
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>&copy; 2026 Ishaan Sharma</span>
+    <span>Arch Linux // Pure Web Components</span>
+  </footer>
+
+  <script>
+    // --- INTEGRATED HARDWARE PRELOADER ENGINE ---
+    const preloader = document.getElementById('sys-preloader');
+    const loadBar = document.getElementById('loader-bar');
+    const loadPct = document.getElementById('loader-pct');
+    const loadLog = document.getElementById('loader-log');
+    
+    const bootLogs = [
+      'Loading system modules...',
+      'Mapping low-level x86 vectors...',
+      'Mounting Arch Linux configurations...',
+      'Initializing SkillMatrix AI matrices...',
+      'Core environment ready.'
+    ];
+
+    let currentProgress = 0;
+    
+    function runBootSequence() {
+      currentProgress += Math.random() * 12;
+      if (currentProgress > 100) currentProgress = 100;
+
+      loadBar.style.width = `${currentProgress}%`;
+      loadPct.textContent = `${Math.floor(currentProgress)}%`;
+
+      if (currentProgress < 25) loadLog.textContent = bootLogs[0];
+      else if (currentProgress < 50) loadLog.textContent = bootLogs[1];
+      else if (currentProgress < 75) loadLog.textContent = bootLogs[2];
+      else if (currentProgress < 95) loadLog.textContent = bootLogs[3];
+      else loadLog.textContent = bootLogs[4];
+
+      if (currentProgress < 100) {
+        requestAnimationFrame(runBootSequence);
+      } else {
+        setTimeout(() => {
+          preloader.classList.add('loaded');
+        }, 400);
+      }
+    }
+    runBootSequence();
+
+
+    // --- CANVAS BACKGROUND ---
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, nodes = [];
+
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    class Node {
+      constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.4;
+        this.vy = (Math.random() - 0.5) * 0.4;
+        this.radius = Math.random() * 1.5 + 0.5;
+      }
+      update() {
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#00f5c4';
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 65; i++) nodes.push(new Node());
+
+    function renderNodeMatrix() {
+      ctx.clearRect(0, 0, width, height);
+      nodes.forEach(node => {
+        node.update();
+        node.draw();
+      });
+      
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < 100) {
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.strokeStyle = `rgba(0, 245, 196, ${0.15 * (1 - distance / 100)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(renderNodeMatrix);
+    }
+    renderNodeMatrix();
+
+
+    // --- GLOBAL TARGET ENGINE CURSOR SYSTEM ---
+    const cursor = document.getElementById('cursor');
+    const ring = document.getElementById('cursor-ring');
+    const satellite = document.getElementById('cursor-satellite');
+    
+    let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+    let ringX = mouseX, ringY = mouseY;
+    let satelliteAngle = 0;
+    let speedFactor = 0;
+    let lastMouseX = mouseX, lastMouseY = mouseY;
+
+    const isDesktopMouse = window.matchMedia('(pointer: fine)').matches;
+
+    if (isDesktopMouse) {
+      document.addEventListener('mousemove', e => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        cursor.style.left = `${mouseX}px`;
+        cursor.style.top = `${mouseY}px`;
+
+        let deltaX = mouseX - lastMouseX;
+        let deltaY = mouseY - lastMouseY;
+        let targetSpeed = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        speedFactor += (targetSpeed - speedFactor) * 0.1;
+
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+      });
+
+      document.querySelectorAll('a, button, .module-card, #core-hardware').forEach(element => {
+        element.addEventListener('mouseenter', () => {
+          ring.style.transform = 'translate(-50%, -50%) scale(1.5)';
+          ring.style.borderColor = '#7b5cff';
+        });
+        element.addEventListener('mouseleave', () => {
+          ring.style.transform = 'translate(-50%, -50%) scale(1)';
+          ring.style.borderColor = '#00f5c4';
+        });
+      });
+    }
+
+    function engineCursorPipelineLoop() {
+      if (isDesktopMouse) {
+        ringX += (mouseX - ringX) * 0.12;
+        ringY += (mouseY - ringY) * 0.12;
+        ring.style.left = `${ringX}px`;
+        ring.style.top = `${ringY}px`;
+
+        satelliteAngle += 0.04 + (speedFactor * 0.005); 
+        let radius = 24;
+        
+        let satX = mouseX + Math.cos(satelliteAngle) * radius;
+        let satY = mouseY + Math.sin(satelliteAngle) * radius;
+        
+        satellite.style.left = `${satX}px`;
+        satellite.style.top = `${satY}px`;
+      }
+      requestAnimationFrame(engineCursorPipelineLoop);
+    }
+    requestAnimationFrame(engineCursorPipelineLoop);
+
+
+    // --- TYPEWRITER ---
+    const strings = ['Systems Programmer', 'Kernel Developer', 'Arch Linux User'];
+    let stringIdx = 0, charIdx = 0, isDeleting = false;
+    const targetEl = document.getElementById('typing-text');
+
+    function runTypewriter() {
+      const currentText = strings[stringIdx];
+      if (!isDeleting) {
+        targetEl.textContent = currentText.slice(0, ++charIdx);
+        if (charIdx === currentText.length) {
+          isDeleting = true;
+          setTimeout(runTypewriter, 2000);
+          return;
+        }
+      } else {
+        targetEl.textContent = currentText.slice(0, --charIdx);
+        if (charIdx === 0) {
+          isDeleting = false;
+          stringIdx = (stringIdx + 1) % strings.length;
+        }
+      }
+      setTimeout(runTypewriter, isDeleting ? 40 : 80);
+    }
+    runTypewriter();
+
+
+    // --- FADE UP ENGINES ---
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.fade-up').forEach(element => revealObserver.observe(element));
+
+
+    // --- INTERACTIVE MOUSE DRAG & TOUCH MOBILE CORE MECHANICS ---
+    const hardwareCore = document.getElementById('core-hardware');
+    let isInteracting = false;
+    let baseRotateY = 45;
+    let baseRotateX = 15;
+    let startX = 0;
+    let startY = 0;
+    let currentRotateY = baseRotateY;
+    let currentRotateX = baseRotateX;
+    let activeModule = 'skillmatrix';
+
+    function switchEngineCore(moduleName) {
+      activeModule = moduleName;
+      document.querySelectorAll('.module-card').forEach(card => card.classList.remove('active'));
+      
+      const currentCard = document.querySelector(`.module-card[data-target="${moduleName}"]`);
+      if (currentCard) currentCard.classList.add('active');
+
+      if (moduleName === 'skillmatrix') {
+        baseRotateY = 45; baseRotateX = 15;
+        document.querySelector('.core-node').style.stroke = '#00f5c4';
+        document.querySelector('.core-node').style.fill = 'rgba(0, 245, 196, 0.2)';
+      } else if (moduleName === 'kernel') {
+        baseRotateY = -45; baseRotateX = -10;
+        document.querySelector('.core-node').style.stroke = '#7b5cff';
+        document.querySelector('.core-node').style.fill = 'rgba(123, 92, 255, 0.2)';
+      }
+      currentRotateY = baseRotateY;
+      currentRotateX = baseRotateX;
+      hardwareCore.style.transform = `rotateY(${currentRotateY}deg) rotateX(${currentRotateX}deg) scale(1.15)`;
+    }
+
+    function startInteraction(clientX, clientY) {
+      isInteracting = true;
+      startX = clientX;
+      startY = clientY;
+      hardwareCore.style.transition = 'none';
+    }
+
+    function moveInteraction(clientX, clientY) {
+      if (!isInteracting) return;
+      let deltaX = clientX - startX;
+      let deltaY = clientY - startY;
+
+      currentRotateY = baseRotateY + (deltaX * 0.5);
+      currentRotateX = baseRotateX - (deltaY * 0.5);
+      hardwareCore.style.transform = `rotateY(${currentRotateY}deg) rotateX(${currentRotateX}deg) scale(1.155)`;
+    }
+
+    function stopInteraction() {
+      if (!isInteracting) return;
+      isInteracting = false;
+      hardwareCore.style.transition = 'transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      baseRotateY = currentRotateY;
+      baseRotateX = currentRotateX;
+    }
+
+    hardwareCore.addEventListener('mousedown', e => startInteraction(e.clientX, e.clientY));
+    document.addEventListener('mousemove', e => moveInteraction(e.clientX, e.clientY));
+    document.addEventListener('mouseup', stopInteraction);
+
+    hardwareCore.addEventListener('touchstart', e => {
+      const touch = e.touches[0];
+      startInteraction(touch.clientX, touch.clientY);
+    });
+    document.addEventListener('touchmove', e => {
+      if (!isInteracting) return;
+      const touch = e.touches[0];
+      moveInteraction(touch.clientX, touch.clientY);
+    });
+    document.addEventListener('touchend', stopInteraction);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      switchEngineCore('skillmatrix');
+    });
+  </script>
+</body>
+</html>

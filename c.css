@@ -1,0 +1,190 @@
+/* AI Visualizer Layout Matrix */
+.ai-visualizer-container {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 4rem;
+  align-items: center;
+  min-height: 500px;
+}
+
+/* Hardware Engine Visualizer Bay */
+.engine-bay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  height: 400px;
+  background: rgba(12, 12, 20, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  perspective: 1000px; /* Crucial for 3D depth */
+}
+
+.hardware-wrapper {
+  position: relative;
+  width: 250px;
+  height: 250px;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* SVG Cyber Engine Components */
+.core-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  transform-origin: center;
+}
+
+.outer-ring {
+  stroke-dasharray: 20 10 40 15;
+  animation: spinClockwise 25s linear infinite;
+}
+
+.middle-ring {
+  stroke: #7b5cff; /* Secondary AI Indigo Purple */
+  stroke-dasharray: 15 30 10 10;
+  animation: spinCounterClockwise 15s linear infinite;
+}
+
+.core-node {
+  fill: rgba(0, 245, 196, 0.15);
+  stroke: var(--accent);
+  stroke-width: 2;
+  transform-origin: center;
+  animation: pulsingNode 3s ease-in-out infinite;
+}
+
+.data-pipe {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+/* Core Volumetric Glow Graphic */
+.matrix-glow {
+  position: absolute;
+  inset: 10px;
+  background: radial-gradient(circle, rgba(0, 245, 196, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  animation: breathGlow 4s ease-in-out infinite;
+}
+
+/* Interactive Interface Selector Cards */
+.modules-interface {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.module-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 1.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+.module-card:hover {
+  border-color: rgba(0, 245, 196, 0.5);
+}
+
+/* Active State: The mechanical card "opens up" */
+.module-card.active {
+  border-color: var(--accent);
+  background: rgba(17, 17, 31, 0.85);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.module-status {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.status-pulse {
+  width: 5px; height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.module-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.module-summary {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Collapsible Content Section Mechanics */
+.module-expanded-content {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.5s ease, opacity 0.4s ease;
+  margin-top: 0;
+}
+
+.module-card.active .module-expanded-content {
+  max-height: 200px;
+  opacity: 1;
+  margin-top: 1.5rem;
+}
+
+/* Code Stream Data Box */
+.data-stream-box {
+  background: #06060a;
+  border: 1px solid var(--border);
+  padding: 1rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stream-line {
+  color: #7b5cff;
+}
+.stream-line:first-child { color: var(--accent); }
+
+/* KEYFRAME ANIMATIONS RUNNING ON HARDWARE ACCELERATION */
+@keyframes spinClockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes spinCounterClockwise {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes pulsingNode {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 8px var(--accent)); }
+}
+@keyframes breathGlow {
+  0%, 100% { opacity: 0.5; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@media (max-width: 900px) {
+  .ai-visualizer-container { grid-template-columns: 1fr; gap: 2rem; }
+  .engine-bay { height: 280px; }
+}
